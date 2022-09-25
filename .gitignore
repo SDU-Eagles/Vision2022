@@ -1,0 +1,10 @@
+*.mp4
+*.pyc
+*/__pycahce__/
+opencv/
+opencv_contrib/
+.vscode/*
+**/build/*
+
+*.psd
+*.ai
