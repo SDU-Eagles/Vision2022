@@ -165,6 +165,9 @@ class DroneControl:
             im_pil.save(img_loc+'.jpg',"jpeg",exif=exif_bytes)
             msg="Image captured. Saved image as img_{}.jpg".format(self.index)
             self.print_debug(msg)
+            if (self.index%50 == 0):
+                self.camera.set_controls({"AfTrigger": 0})
+                time.sleep(1)
             # img.gps_latitude = self.uav_position[0]
             # img.gps_longitude = self.uav_position[1]
             # img.gps_altitude = self.uav_position[2]
@@ -215,7 +218,7 @@ class DroneControl:
                                      m.chan10_raw,
                                      m.chan11_raw,
                                      m.chan12_raw]
-                elif (m.get_type() == 'GLOBAL_POSITION_INT'):
+                elif (m.get_type() == 'GPS_RAW_INT'):
                     # print(m.lat/1e7, m.lon/1e7, m.alt/1e3)
                     self.uav_position = (
                         m.lat/1e7, m.lon/1e7, m.alt/1e3, int(m.hdg/1e2))

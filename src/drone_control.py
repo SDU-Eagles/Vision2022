@@ -62,7 +62,7 @@ import numpy as np
 import os
 
 class DroneControl:
-    def __init__(self, port = "/dev/PX4", baud=115200, img_loc = "/home/pi/images") :
+    def __init__(self, port = "/dev/ttyCubePilot", baud=115200, img_loc = "/home/pi/Pictures") :
         self.ns = "DroneControl"
         self.armed = False
         self.mode = None
@@ -71,6 +71,8 @@ class DroneControl:
         self.debounce = False
         self.uav_position = [0,0,0,0]
         self.debug = True
+
+        self.image_mod = 0
 
         self.state = "INIT"
         self.gps_loc_filename='gps_locations.log'
@@ -116,7 +118,7 @@ class DroneControl:
         self.state = data
         self.print_debug("New State: {}".format(data))
 
-    def to_deg(value, loc):
+    def to_deg(self,value, loc):
         """convert decimal coordinates into degrees, munutes and seconds tuple
         Keyword arguments: value is float gps-value, loc is direction list ["S", "N"] or ["W", "E"]
         return: tuple like (25, 13, 48.343 ,'N')
@@ -135,7 +137,7 @@ class DroneControl:
         return (deg, min, sec, loc_value)
 
 
-    def change_to_rational(number):
+    def change_to_rational(self,number):
         """convert a number to rantional
         Keyword arguments: number
         return: tuple like (1, 2), (numerator, denominator)
@@ -152,22 +154,28 @@ class DroneControl:
 
             img = cv2.cvtColor(im, cv2.COLOR_BGR2RGB)
             im_pil = Image.fromarray(img)
+            
+            print("lat = " + str(self.uav_position[0]) + " lon = " + str(self.uav_position[1]))
 
             lat_deg = self.to_deg(self.uav_position[0], ["S", "N"])
             lng_deg = self.to_deg(self.uav_position[1], ["W", "E"])
             exiv_lat = (self.change_to_rational(lat_deg[0]), self.change_to_rational(lat_deg[1]), self.change_to_rational(lat_deg[2]))
             exiv_lng = (self.change_to_rational(lng_deg[0]), self.change_to_rational(lng_deg[1]), self.change_to_rational(lng_deg[2]))
             gps_ifd = {
-                piexif.GPSIFD.GPSAltitude: (self.uav_position[2],1),
+                piexif.GPSIFD.GPSAltitude: (self.change_to_rational(self.uav_position[2])),
                 piexif.GPSIFD.GPSLatitude: (exiv_lat),
                 piexif.GPSIFD.GPSLongitude: (exiv_lng ),
+                piexif.GPSIFD.GPSHeading: (self.change_to_rational(self.uav_position[3]))
             }
             exif_dict = {"GPS": gps_ifd}
             exif_bytes = piexif.dump(exif_dict)
             im_pil.save(img_loc+'.jpg',"jpeg",exif=exif_bytes)
             msg="Image captured. Saved image as img_{}.jpg".format(self.index)
             self.print_debug(msg)
-            
+            if (self.image_mod == 0):
+                self.camera.set_controls({"AfTrigger": 0})
+                time.sleep(1)
+            self.image_mod = (self.image_mod + 1)%50
 
             # save geolocation of image
 #            try:
@@ -192,7 +200,8 @@ class DroneControl:
     def recv_mavlink(self):
         while self.state == "RUNNING":
             m = self.interface.recv_msg()
-            #print(m)
+            # if (m != None):
+            #     print(m)
             if m:
                 #print(m)
                 if(m.get_type() == 'HEARTBEAT'):
@@ -290,6 +299,6 @@ class DroneControl:
 if __name__ == '__main__':
     DC = DroneControl()
     DC.print_debug('Brief pause before continuing....')
-    sleep(10)
+    time.sleep(1.0)
     DC.run()
         
