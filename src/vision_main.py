@@ -1,5 +1,6 @@
 import cv2
 import numpy as np
+from multiprocessing import Process
 
 import camera_param_intrinsic
 
@@ -58,7 +59,7 @@ def resize_img(img, height_dim = 4608):
 
 
 # Expected marker size in image.
-def marker_image_size(marker_world_size, altitude, focal_length):
+def get_marker_image_size(marker_world_size, altitude, focal_length):
     marker_image_size = (marker_world_size * focal_length) / altitude
     return marker_image_size
 
@@ -87,35 +88,41 @@ def marker_cutout(img, centre_point, angle, marker_size, debug=False):
     return img_zoom
 
 
-
-# Load image
-# path = "Markers/markers_rotated.png"
-path = "Sample_images/img_2.jpg"
-img = cv2.imread(path)
-# img, scale_factor = resize_img(img, 1000)
-scale_factor = 1
-
-
-# Get marker information
-grid_size = 5
-world_marker_size = 0.5
-altitide = 40
-marker_image_size = marker_image_size(world_marker_size, altitide, camera_param_intrinsic.FOCAL_LENGTH_PX)
-marker_image_size = np.ceil(marker_image_size * scale_factor)
-
-# Detect markers
-response, gradient_angles = square_response(img, marker_image_size, debug = True)
-marker_locations, marker_rotations = mark_markers(img, response, gradient_angles, marker_image_size, scale_factor, debug = False)
-
-print(f"Found {len(marker_locations)} markers")
-
-img_marked = img.copy()
-
-for location, angle in zip(marker_locations, marker_rotations):
-    cutout = marker_cutout(img, location, angle, marker_image_size, debug = False)
-
-    markerID = identify_marker(cutout, grid_size, scale_factor, debug = True)
-    debug_info_img(img_marked, location, angle, markerID, marker_image_size, scale_factor)
+def vison_main():
+    # Load image
+    # path = "Markers/markers_rotated.png"
+    path = "Sample_images/img_2.jpg"
+    img = cv2.imread(path)
+    # img, scale_factor = resize_img(img, 1000)
+    scale_factor = 1
 
 
-print("Wrote image to path: 'output/debug_info.png'")
+    # Get marker information
+    grid_size = 5
+    world_marker_size = 0.5
+    altitide = 40
+    marker_image_size = get_marker_image_size(world_marker_size, altitide, camera_param_intrinsic.FOCAL_LENGTH_PX)
+    marker_image_size = np.ceil(marker_image_size * scale_factor)
+
+    # Detect markers
+    response, gradient_angles = square_response(img, marker_image_size, debug = True)
+    marker_locations, marker_rotations = mark_markers(img, response, gradient_angles, marker_image_size, scale_factor, debug = False)
+
+    print(f"Found {len(marker_locations)} markers")
+
+    img_marked = img.copy()
+
+    for location, angle in zip(marker_locations, marker_rotations):
+        cutout = marker_cutout(img, location, angle, marker_image_size, debug = False)
+
+        markerID = identify_marker(cutout, grid_size, scale_factor, debug = True)
+        debug_info_img(img_marked, location, angle, markerID, marker_image_size, scale_factor)
+
+
+    print("Wrote image to path: 'output/debug_info.png'")
+
+
+if __name__ == '__main__':
+    process = Process(target=vison_main)
+    process.start()
+    process.join()
